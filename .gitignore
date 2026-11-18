@@ -44,3 +44,5 @@ Thumbs.db
 *.sqlite3
 ledger_snapshot.json
 
+
+*.docx

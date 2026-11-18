@@ -7,12 +7,11 @@
 ![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 ![pytest](https://img.shields.io/badge/pytest-66%2F66%20Passed-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
 ![Zero Trust](https://img.shields.io/badge/Security-Zero%20Trust%20DbC-10B981?style=for-the-badge&logo=shield&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 **A Production-Grade Secure SDLC Workbench & FinTech Banking Application**  
 *Proving that security is mathematically engineered into every phase of the Software Development Life Cycle—not just bolted on at the end.*
 
-[Overview](#-overview) • [Why Design-by-Contract?](#-why-design-by-contract-dbc) • [The 4 Secure SDLC Phases](#-the-4-secure-sdlc-phases) • [Live Attack Demos](#-red-team-attack-simulator) • [Automated Tests](#-automated-verification-suite) • [Quick Start](#-quick-start-guide) • [Viva Guide](#-viva-presentation-cheat-sheet)
+[Overview](#-overview) • [Why Design-by-Contract?](#-why-design-by-contract-dbc) • [The 4 Secure SDLC Phases](#-the-4-secure-sdlc-phases) • [Live Attack Demos](#-red-team-attack-simulator) • [Automated Tests](#-automated-verification-suite) • [Quick Start](#-quick-start-guide)
 
 </div>
 
@@ -161,6 +160,37 @@ The built-in Red-Team console allows you to demonstrate real attacks with a sing
 
 ---
 
+## 🛡️ Core Security Engineering Innovations
+
+| Innovation | Formal Mechanism | Defends Against |
+| :--- | :--- | :--- |
+| **Pre-Condition Validation Pipeline** | Strict type bounds, positive amounts ( < x \le 50000$), context risk scoring ($< 70$) | Parameter injection, negative overdrafts, anomalous request bursts |
+| **Cryptographic Hash-Chained Invariant** | Block hash linkage: $\\text{SHA256}(prev + sender + receiver + amt + ts)$ | Direct insider SQLite tampering, silent database modification |
+| **Conservation of Money Law** | Mathematical post-condition: {before} + R_{before} == S_{after} + R_{after}$ | Algorithmic logic errors, currency generation or loss |
+| **Anti-Replay Nonce Registry** | Ephemeral single-use cryptographic tokens | Network replay attacks, duplicate transaction resubmissions |
+| **Constant-Time HMAC Payload Verification** | Secret-keyed SHA-256 HMAC checked with timing-safe comparison | Man-in-the-middle payload alteration |
+| **Finite State Circuit Breaker** | Automaton states (CLOSED, OPEN, HALF_OPEN) with self-healing snapshot | System operation on corrupted state |
+
+---
+
+## 🔌 API Endpoints Reference
+
+| Endpoint | Method | Role | Security Controls |
+| :--- | :---: | :--- | :--- |
+| /api/balances | GET | Retrieve account balances | Read-only parameterized query |
+| /api/transfer | POST | Execute authenticated money transfer | Full @secure_contract pipeline |
+| /api/ledger | GET | Audit cryptographic ledger chain | Invariant verification scanner |
+| /api/circuit | GET | Check Circuit Breaker automaton state | Health telemetry monitoring |
+| /api/attack/race | POST | Simulate 5-thread TOCTOU parallel overdraft | Mutex serialization & post-condition test |
+| /api/attack/tamper | POST | Simulate direct SQL database manipulation | Hash-chain break detection |
+| /api/self_heal | POST | Restore ledger from verified snapshot | Cryptographic state recovery |
+| /api/attack/mitm | POST | Simulate modified payload in transit | HMAC-SHA256 integrity validation |
+| /api/attack/negative| POST | Simulate inverted negative transfer | Bounded amount pre-condition check |
+| /api/run_tests | POST | Run 66 automated pytest assertions | Subprocess test harness execution |
+| /api/reset | POST | Reset demo state to genesis values | Clean test baseline restoration |
+
+---
+
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
@@ -203,7 +233,6 @@ ZeroTrustPay/
 ├── test_sse_suite.py                            # 66 automated pytest security verification tests
 ├── requirements.txt                             # Minimal dependencies (Flask, pytest)
 ├── README.md                                    # Comprehensive documentation
-├── ZeroTrustPay_Viva_Demonstration_Guide.docx   # Word Document presentation script for viva evaluation
 ├── .gitignore                                   # Clean repository exclusions
 └── templates/
     └── index.html                               # Minimalist obsidian-black UI workbench (Antigravity aesthetic)
@@ -211,23 +240,6 @@ ZeroTrustPay/
 
 ---
 
-## 🎓 Viva Presentation Cheat-Sheet
-
-If your professor asks:
-
-- **"What is Design-by-Contract?"**  
-  *Answer:* "Mam, it is a formal software engineering technique where code execution is treated like a binding legal contract: Pre-conditions check inputs before running, System Invariants check system health during execution, and Post-conditions verify that the result conforms to formal laws (like Conservation of Money) before committing."
-
-- **"What does Conservation of Money mean?"**  
-  *Answer:* "Mam, in banking systems, money cannot be created or destroyed. Our Post-Condition asserts that $\text{Sender\_Before} + \text{Receiver\_Before} == \text{Sender\_After} + \text{Receiver\_After}$. If any race condition or glitch violates this, the transaction is automatically aborted."
-
-- **"How does the SHA-256 Ledger work?"**  
-  *Answer:* "Each transaction row calculates $\text{curr\_hash} = \text{SHA256}(\text{prev\_hash} + \text{sender} + \text{receiver} + \text{amount} + \text{timestamp})$. If anyone tampers with historical rows in SQLite directly, all subsequent hashes break, tripping the Circuit Breaker to freeze the system."
-
----
-
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
-Developed by **Shreyanshu Raj** for **Secure Software Engineering (5th Semester)**.
+This project is distributed for educational and academic research evaluation.
