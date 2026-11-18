@@ -164,7 +164,7 @@ The built-in Red-Team console allows you to demonstrate real attacks with a sing
 
 | Innovation | Formal Mechanism | Defends Against |
 | :--- | :--- | :--- |
-| **Pre-Condition Validation Pipeline** | Strict type bounds, positive amounts ( < x \le 50000$), context risk scoring ($< 70$) | Parameter injection, negative overdrafts, anomalous request bursts |
+| **Pre-Condition Validation Pipeline** | Strict type bounds, positive amounts ($0 < x \le 50000$), context risk scoring ($< 70$) | Parameter injection, negative overdrafts, anomalous request bursts |
 | **Cryptographic Hash-Chained Invariant** | Block hash linkage: $\\text{SHA256}(prev + sender + receiver + amt + ts)$ | Direct insider SQLite tampering, silent database modification |
 | **Conservation of Money Law** | Mathematical post-condition: {before} + R_{before} == S_{after} + R_{after}$ | Algorithmic logic errors, currency generation or loss |
 | **Anti-Replay Nonce Registry** | Ephemeral single-use cryptographic tokens | Network replay attacks, duplicate transaction resubmissions |
