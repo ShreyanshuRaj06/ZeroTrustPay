@@ -22,6 +22,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import sqlite3
 import threading
 import time
@@ -637,30 +638,6 @@ def secure_contract(db_path_getter: Callable, secure_mode_getter: Callable):
             secure = secure_mode_getter()
             db = db_path_getter()
 
-            _emit("INFO", "PRE",
-                  f"🔐 @secure_contract invoked for {payload.get('sender')} → "
-                  f"{payload.get('receiver')} | ₹{payload.get('amount')} | "
-                  f"Mode: {'v2.0 Secure' if secure else 'v1.0 Naive'}",
-                  {"mode": "secure" if secure else "naive"})
-
-            # ── STAGE 1: PRE-CONDITIONS ───────────────────────────────────
-            pre_result = check_preconditions(payload, sender_balance, secure)
-            if not pre_result["passed"]:
-                raise PreConditionError(
-                    f"Pre-condition failed: {'; '.join(pre_result['violations'])}"
-                )
-
-            # ── STAGE 2: PRE-INVARIANT ────────────────────────────────────
-            inv_pre = check_invariant(db, secure)
-            if not inv_pre["passed"]:
-                raise InvariantError(
-                    f"Pre-invariant failed (hash chain broken): "
-                    f"{inv_pre.get('reason', 'Unknown')}"
-                )
-
-            # ── STAGE 3: FUNCTION BODY (atomic, under mutex) ──────────────
-            # In secure mode: acquire mutex to prevent TOCTOU race conditions.
-            # In naive mode: NO mutex → race condition exploit is possible.
             if secure:
                 acquired = TRANSACTION_MUTEX.acquire(timeout=5.0)
                 if not acquired:
@@ -668,57 +645,95 @@ def secure_contract(db_path_getter: Callable, secure_mode_getter: Callable):
                         "PC-MUTEX: Could not acquire transaction lock — "
                         "another transaction in progress. TOCTOU protection active."
                     )
-                try:
-                    result = fn(payload, sender_balance, receiver_balance,
-                                *args, **kwargs)
-                finally:
-                    TRANSACTION_MUTEX.release()
-            else:
-                # v1.0: No mutex — race condition vulnerability exposed
+
+            try:
+                # Under mutex in secure mode: refresh committed balances from DB if available
+                if secure and db and os.path.exists(db):
+                    try:
+                        conn_chk = sqlite3.connect(db, timeout=2.0)
+                        c_chk = conn_chk.cursor()
+                        c_chk.execute("SELECT balance FROM wallets WHERE username = ?", (payload.get("sender"),))
+                        r_s = c_chk.fetchone()
+                        if r_s is not None:
+                            sender_balance = float(r_s[0])
+                        c_chk.execute("SELECT balance FROM wallets WHERE username = ?", (payload.get("receiver"),))
+                        r_r = c_chk.fetchone()
+                        if r_r is not None:
+                            receiver_balance = float(r_r[0])
+                        conn_chk.close()
+                    except Exception:
+                        pass
+
+                _emit("INFO", "PRE",
+                      f"🔐 @secure_contract invoked for {payload.get('sender')} → "
+                      f"{payload.get('receiver')} | ₹{payload.get('amount')} | "
+                      f"Mode: {'v2.0 Secure' if secure else 'v1.0 Naive'}",
+                      {"mode": "secure" if secure else "naive"})
+
+                # ── STAGE 1: PRE-CONDITIONS ───────────────────────────────────
+                pre_result = check_preconditions(payload, sender_balance, secure)
+                if not pre_result["passed"]:
+                    raise PreConditionError(
+                        f"Pre-condition failed: {'; '.join(pre_result['violations'])}"
+                    )
+
+                # ── STAGE 2: PRE-INVARIANT ────────────────────────────────────
+                inv_pre = check_invariant(db, secure)
+                if not inv_pre["passed"]:
+                    raise InvariantError(
+                        f"Pre-invariant failed (hash chain broken): "
+                        f"{inv_pre.get('reason', 'Unknown')}"
+                    )
+
+                # ── STAGE 3: FUNCTION BODY ────────────────────────────────────
                 result = fn(payload, sender_balance, receiver_balance,
                             *args, **kwargs)
 
-            # ── STAGE 4: POST-INVARIANT ───────────────────────────────────
-            inv_post = check_invariant(db, secure)
-            if not inv_post["passed"]:
-                raise InvariantError(
-                    f"Post-invariant failed — ledger corrupted after write: "
-                    f"{inv_post.get('reason', 'Unknown')}"
+                # ── STAGE 4: POST-INVARIANT ───────────────────────────────────
+                inv_post = check_invariant(db, secure)
+                if not inv_post["passed"]:
+                    raise InvariantError(
+                        f"Post-invariant failed — ledger corrupted after write: "
+                        f"{inv_post.get('reason', 'Unknown')}"
+                    )
+
+                # ── STAGE 5: POST-CONDITIONS ──────────────────────────────────
+                post_result = check_postconditions(
+                    sender_before=sender_balance,
+                    receiver_before=receiver_balance,
+                    sender_after=result.get("sender_after", sender_balance),
+                    receiver_after=result.get("receiver_after", receiver_balance),
+                    amount=float(payload.get("amount", 0)),
+                    secure_mode=secure
                 )
 
-            # ── STAGE 5: POST-CONDITIONS ──────────────────────────────────
-            post_result = check_postconditions(
-                sender_before=sender_balance,
-                receiver_before=receiver_balance,
-                sender_after=result.get("sender_after", sender_balance),
-                receiver_after=result.get("receiver_after", receiver_balance),
-                amount=float(payload.get("amount", 0)),
-                secure_mode=secure
-            )
+                if not post_result["passed"]:
+                    # POST-condition violation → trigger rollback via exception
+                    raise PostConditionError(
+                        f"Post-condition violated (Conservation of Money broken): "
+                        f"{'; '.join(post_result['violations'])}"
+                    )
 
-            if not post_result["passed"]:
-                # POST-condition violation → trigger rollback via exception
-                raise PostConditionError(
-                    f"Post-condition violated (Conservation of Money broken): "
-                    f"{'; '.join(post_result['violations'])}"
-                )
+                _emit("INFO", "POST",
+                      f"✅ Transaction contract FULFILLED: "
+                      f"₹{payload.get('amount')} {payload.get('sender')} → "
+                      f"{payload.get('receiver')}",
+                      {
+                          "sender_after": result.get("sender_after"),
+                          "receiver_after": result.get("receiver_after")
+                      })
 
-            _emit("INFO", "POST",
-                  f"✅ Transaction contract FULFILLED: "
-                  f"₹{payload.get('amount')} {payload.get('sender')} → "
-                  f"{payload.get('receiver')}",
-                  {
-                      "sender_after": result.get("sender_after"),
-                      "receiver_after": result.get("receiver_after")
-                  })
+                result["contract_telemetry"] = {
+                    "pre": pre_result,
+                    "inv_pre": inv_pre,
+                    "inv_post": inv_post,
+                    "post": post_result,
+                }
+                return result
 
-            result["contract_telemetry"] = {
-                "pre": pre_result,
-                "inv_pre": inv_pre,
-                "inv_post": inv_post,
-                "post": post_result,
-            }
-            return result
+            finally:
+                if secure:
+                    TRANSACTION_MUTEX.release()
 
         return wrapper
     return decorator

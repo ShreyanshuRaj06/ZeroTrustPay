@@ -242,6 +242,13 @@ def _execute_transfer(payload: dict, sender_balance: float,
     new_sender_bal = round(sender_balance - amount, 6)
     new_receiver_bal = round(receiver_balance + amount, 6)
 
+    # Formal Post-Condition Enforcement: No Overdraft Law
+    if new_sender_bal < 0:
+        raise C.PostConditionError(
+            f"POST-2 [No Overdraft]: Sender balance after={new_sender_bal:.2f} < 0. "
+            "Overdraft would violate financial invariant. ROLLED BACK."
+        )
+
     conn = get_conn()
     try:
         conn.execute("BEGIN EXCLUSIVE")  # Exclusive lock — TOCTOU protection
@@ -347,18 +354,23 @@ def api_circuit_reset():
     return jsonify({"status": "ok", "message": "Circuit Breaker reset to CLOSED"})
 
 
-@app.route("/api/mode", methods=["POST"])
+@app.route("/api/mode", methods=["GET", "POST"])
 def api_mode():
-    data = request.get_json(force=True)
-    mode = data.get("mode", "secure")
-    set_secure_mode(mode == "secure")
-    C._emit("INFO", "PRE",
-            f"🔄 Mode switched to: {'v2.0 Secure SE' if get_secure_mode() else 'v1.0 Naive/Unengineered'}",
-            {"mode": mode})
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        mode = data.get("mode", "secure")
+        set_secure_mode(mode == "secure")
+        C._emit("INFO", "PRE",
+                f"🔄 Mode switched to: {'v2.0 Secure SE' if get_secure_mode() else 'v1.0 Naive/Unengineered'}",
+                {"mode": mode})
+        return jsonify({
+            "mode": mode,
+            "secure": get_secure_mode(),
+            "message": f"Switched to {'Contract-Driven Secure SE (v2.0)' if get_secure_mode() else 'Naive Unengineered (v1.0)'}"
+        })
     return jsonify({
-        "mode": mode,
-        "secure": get_secure_mode(),
-        "message": f"Switched to {'Contract-Driven Secure SE (v2.0)' if get_secure_mode() else 'Naive Unengineered (v1.0)'}"
+        "mode": "secure" if get_secure_mode() else "naive",
+        "secure": get_secure_mode()
     })
 
 
@@ -510,16 +522,15 @@ def attack_race():
                     "message": f"Thread-{thread_id}: ₹2,000 transferred"
                 }
             else:
-                # Naive: bypass contract, directly manipulate DB (simulate race)
+                # Naive: bypass contract, simulate TOCTOU check-then-act race
                 conn = get_conn()
-                # Intentional race: read THEN write without lock
                 s_bal = _get_balance("Shreyanshu", conn)
-                time.sleep(0.01)  # Simulate processing delay → race window opens
-                r_bal = _get_balance("Merchant_Store", conn)
-                new_s = s_bal - 2000
-                new_r = r_bal + 2000
-                _set_balance("Shreyanshu", new_s, conn)
-                _set_balance("Merchant_Store", new_r, conn)
+                time.sleep(0.02)  # Race window opens: all 5 threads check balance before any deduct
+                conn.execute("UPDATE wallets SET balance = balance - 2000 WHERE username = 'Shreyanshu'")
+                conn.execute("UPDATE wallets SET balance = balance + 2000 WHERE username = 'Merchant_Store'")
+                cur = conn.cursor()
+                cur.execute("SELECT balance FROM wallets WHERE username = 'Shreyanshu'")
+                new_s = float(cur.fetchone()[0])
                 _append_ledger_entry(conn, "Shreyanshu", "Merchant_Store", 2000, nonce)
                 conn.commit()
                 conn.close()
@@ -527,7 +538,7 @@ def attack_race():
                     "thread": thread_id,
                     "status": "SUCCESS_NAIVE",
                     "sender_after": new_s,
-                    "message": f"Thread-{thread_id}: ₹2,000 transferred (RACE EXPLOITED! balance={new_s})"
+                    "message": f"Thread-{thread_id}: ₹2,000 transferred (RACE EXPLOITED! balance=₹{new_s})"
                 }
 
         except (C.PreConditionError, C.PostConditionError, C.InvariantError) as e:
