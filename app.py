@@ -134,12 +134,12 @@ def init_db():
 
     conn.commit()
 
-    # Seed wallets if empty
+    # Seed wallets with INITIAL_BALANCES
     for username, balance in INITIAL_BALANCES.items():
-        cur.execute(
-            "INSERT OR IGNORE INTO wallets (username, balance) VALUES (?, ?)",
-            (username, balance)
-        )
+        cur.execute("""
+            INSERT INTO wallets (username, balance) VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET balance = excluded.balance
+        """, (username, balance))
     conn.commit()
     conn.close()
 
@@ -588,7 +588,7 @@ def attack_race():
             f"Balance preserved at ₹{final_balance}"
             if secure else
             f"⛔ VULNERABLE: Race condition exploited! Balance = ₹{final_balance} "
-            "(should be ₹5000 or ₹3000, not negative)"
+            "(should be ₹20,000 or ₹2,000, not negative)"
         ),
         "mode": "secure" if secure else "naive"
     })
