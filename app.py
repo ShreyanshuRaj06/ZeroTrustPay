@@ -56,8 +56,8 @@ _MODE_LOCK = threading.Lock()
 
 # Initial balances (for demo reset)
 INITIAL_BALANCES = {
-    "Shreyanshu": 5000.0,
-    "Merchant_Store": 10000.0,
+    "Shreyanshu": 20000.0,
+    "Merchant_Store": 80000.0,
 }
 
 
@@ -489,9 +489,9 @@ def api_reset():
 def attack_race():
     """
     Attack 1: TOCTOU Parallel Race Condition
-    Fires 5 concurrent ₹2,000 transfers from Shreyanshu (balance ₹5,000).
+    Fires 5 concurrent ₹6,000 transfers from Shreyanshu (balance ₹20,000).
     
-    v1.0 (Naive):  No mutex → race window → balance can go to -₹5,000
+    v1.0 (Naive):  No mutex → race window → balance can go to -₹10,000
     v2.0 (Secure): Atomic mutex + post-condition blocks all overdraft attempts
     """
     secure = get_secure_mode()
@@ -504,7 +504,7 @@ def attack_race():
         payload = {
             "sender": "Shreyanshu",
             "receiver": "Merchant_Store",
-            "amount": 2000,
+            "amount": 6000,
             "nonce": nonce,
         }
         payload["signature"] = C.compute_hmac(payload)
@@ -519,26 +519,26 @@ def attack_race():
                     "thread": thread_id,
                     "status": "SUCCESS",
                     "sender_after": result["sender_after"],
-                    "message": f"Thread-{thread_id}: ₹2,000 transferred"
+                    "message": f"Thread-{thread_id}: ₹6,000 transferred"
                 }
             else:
                 # Naive: bypass contract, simulate TOCTOU check-then-act race
                 conn = get_conn()
                 s_bal = _get_balance("Shreyanshu", conn)
                 time.sleep(0.02)  # Race window opens: all 5 threads check balance before any deduct
-                conn.execute("UPDATE wallets SET balance = balance - 2000 WHERE username = 'Shreyanshu'")
-                conn.execute("UPDATE wallets SET balance = balance + 2000 WHERE username = 'Merchant_Store'")
+                conn.execute("UPDATE wallets SET balance = balance - 6000 WHERE username = 'Shreyanshu'")
+                conn.execute("UPDATE wallets SET balance = balance + 6000 WHERE username = 'Merchant_Store'")
                 cur = conn.cursor()
                 cur.execute("SELECT balance FROM wallets WHERE username = 'Shreyanshu'")
                 new_s = float(cur.fetchone()[0])
-                _append_ledger_entry(conn, "Shreyanshu", "Merchant_Store", 2000, nonce)
+                _append_ledger_entry(conn, "Shreyanshu", "Merchant_Store", 6000, nonce)
                 conn.commit()
                 conn.close()
                 outcome = {
                     "thread": thread_id,
                     "status": "SUCCESS_NAIVE",
                     "sender_after": new_s,
-                    "message": f"Thread-{thread_id}: ₹2,000 transferred (RACE EXPLOITED! balance=₹{new_s})"
+                    "message": f"Thread-{thread_id}: ₹6,000 transferred (RACE EXPLOITED! balance=₹{new_s})"
                 }
 
         except (C.PreConditionError, C.PostConditionError, C.InvariantError) as e:
@@ -578,8 +578,8 @@ def attack_race():
     return jsonify({
         "attack": "TOCTOU Race Condition",
         "threads": 5,
-        "amount_per_thread": 2000,
-        "initial_balance": 5000,
+        "amount_per_thread": 6000,
+        "initial_balance": 20000,
         "final_balance": final_balance,
         "elapsed_seconds": elapsed,
         "results": results,

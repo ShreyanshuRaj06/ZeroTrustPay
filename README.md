@@ -140,7 +140,7 @@ The built-in Red-Team console allows you to demonstrate real attacks with a sing
 
 | Attack Scenario | What Attacker Does | v1.0 Naive (Unengineered) | v2.0 Secure SE (Contract-Driven) |
 | :--- | :--- | :--- | :--- |
-| **1. TOCTOU Race Condition** | Fires 5 simultaneous ₹2,000 transfers against a ₹5,000 balance | ❌ **VULNERABLE:** Race window opens. Balance drops to **-₹5,000** (Overdraft exploit succeeded). | ✅ **SECURE:** Mutex serializes execution. 2 pass (₹4,000), 3 are blocked. Balance safely remains **₹1,000**. |
+| **1. TOCTOU Race Condition** | Fires 5 simultaneous ₹6,000 transfers against a ₹20,000 balance | ❌ **VULNERABLE:** Race window opens. Balance drops to **-₹10,000** (Overdraft exploit succeeded). | ✅ **SECURE:** Mutex serializes execution. 3 pass (₹18,000), 2 are blocked. Balance safely remains **₹2,000**. |
 | **2. Insider DB Tampering** | Executes raw SQL adding ₹99,000 directly into the database | ❌ **VULNERABLE:** Tampering is completely undetected. Rogue funds are kept. | ✅ **SECURE:** System invariant detects broken hash chain. **Circuit Breaker trips to OPEN** and freezes state. |
 | **3. MITM Parameter Tamper** | Intercepts signed ₹100 transfer, changes amount to ₹4,500 | ❌ **VULNERABLE:** Server accepts modified amount. Attacker steals ₹4,500. | ✅ **SECURE:** PC-5 HMAC-SHA256 signature mismatch. Request is rejected immediately. |
 | **4. Negative Amount Exploit** | Transfers `amount = -5000` to reverse deduction math | ❌ **VULNERABLE:** Math reverses: sender gains ₹5,000 and victim loses ₹5,000. | ✅ **SECURE:** PC-2 Bounds (`amount > 0`) and Conservation of Money law block the transfer. |

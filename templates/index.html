@@ -768,7 +768,7 @@
               <span class="font-medium text-white">Shreyanshu</span>
               <span class="tag tag-neutral text-[10px]">PRIMARY</span>
             </div>
-            <div class="text-2xl font-bold text-white font-mono" id="bal-shreyanshu">₹5,000.00</div>
+            <div class="text-2xl font-bold text-white font-mono" id="bal-shreyanshu">₹20,000.00</div>
             <div class="text-[10px] text-zinc-600 font-mono mt-1">ZTP-8842-SHREY</div>
           </div>
 
@@ -777,7 +777,7 @@
               <span class="font-medium text-white">Merchant_Store</span>
               <span class="tag tag-neutral text-[10px]">VENDOR</span>
             </div>
-            <div class="text-2xl font-bold text-white font-mono" id="bal-merchant">₹10,000.00</div>
+            <div class="text-2xl font-bold text-white font-mono" id="bal-merchant">₹80,000.00</div>
             <div class="text-[10px] text-zinc-600 font-mono mt-1">ZTP-1099-MERCH</div>
           </div>
         </div>
@@ -879,13 +879,13 @@
           <div class="flex items-start justify-between">
             <div>
               <div class="font-semibold text-xs text-white">Attack 1: TOCTOU Parallel Race Condition (5 Threads)</div>
-              <div class="text-[11px] text-zinc-400 mt-0.5">5 parallel ₹2,000 transfers when balance is only ₹5,000. Total requested: ₹10,000.</div>
+              <div class="text-[11px] text-zinc-400 mt-0.5">5 parallel ₹6,000 transfers when balance is ₹20,000. Total requested: ₹30,000.</div>
             </div>
             <span class="tag tag-neutral">Concurrency</span>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-[11px] font-mono p-2 rounded bg-zinc-900 border border-zinc-800">
-            <div class="text-rose-400"><span class="text-zinc-500">v1.0 Naive:</span> Balance ➜ -₹5,000 (Exploit!)</div>
+            <div class="text-rose-400"><span class="text-zinc-500">v1.0 Naive:</span> Balance ➜ -₹10,000 (Exploit!)</div>
             <div class="text-emerald-400"><span class="text-zinc-500">v2.0 Secure:</span> Mutex blocks 3 threads (Safe)</div>
           </div>
 
