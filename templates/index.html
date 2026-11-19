@@ -1374,10 +1374,40 @@ async function loadBalances() {
   try {
     const res = await fetch('/api/balances');
     const data = await res.json();
-    const fmt = n => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const fmt = n => {
+      const v = Number(n);
+      if (isNaN(v)) return '₹0.00';
+      if (v < 0) {
+        return '-₹' + Math.abs(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      }
+      return '₹' + v.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    };
     
-    document.getElementById('bal-shreyanshu').textContent = fmt(data.balances['Shreyanshu'] ?? 0);
-    document.getElementById('bal-merchant').textContent = fmt(data.balances['Merchant_Store'] ?? 0);
+    const sVal = Number(data.balances['Shreyanshu'] ?? 0);
+    const mVal = Number(data.balances['Merchant_Store'] ?? 0);
+    
+    const sEl = document.getElementById('bal-shreyanshu');
+    const mEl = document.getElementById('bal-merchant');
+    
+    if (sEl) {
+      sEl.textContent = fmt(sVal);
+      if (sVal < 0) {
+        sEl.className = 'text-2xl font-bold font-mono text-rose-500 animate-pulse';
+      } else if (sVal > 20000) {
+        sEl.className = 'text-2xl font-bold font-mono text-amber-400';
+      } else {
+        sEl.className = 'text-2xl font-bold text-white font-mono';
+      }
+    }
+    
+    if (mEl) {
+      mEl.textContent = fmt(mVal);
+      if (mVal < 0) {
+        mEl.className = 'text-2xl font-bold font-mono text-rose-500 animate-pulse';
+      } else {
+        mEl.className = 'text-2xl font-bold text-white font-mono';
+      }
+    }
   } catch(e) {}
 }
 
@@ -1421,7 +1451,11 @@ async function loadLedger() {
     if (data.chain_valid) {
       chainStatus.innerHTML = `<span class="text-emerald-400 font-medium">● Invariant Intact: All ${data.total} blocks cryptographically linked (SHA-256)</span>`;
     } else {
-      chainStatus.innerHTML = `<span class="text-rose-400 font-medium">● INVARIANT BROKEN: ${data.corrupted_rows.length} block(s) tampered! Circuit Breaker TRIPPED.</span>`;
+      if (currentMode === 'secure') {
+        chainStatus.innerHTML = `<span class="text-rose-400 font-medium">● INVARIANT BROKEN: ${data.corrupted_rows.length} block(s) tampered! Circuit Breaker TRIPPED.</span>`;
+      } else {
+        chainStatus.innerHTML = `<span class="text-amber-400 font-medium">● v1.0 NAIVE: Hash chain broken at ${data.corrupted_rows.length} block(s), but INVARIANT CHECK IS DISABLED (No Circuit Breaker).</span>`;
+      }
     }
   } catch(e) {}
 }

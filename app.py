@@ -598,59 +598,59 @@ def attack_race():
 def attack_tamper():
     """
     Attack 2: Insider Database Tampering (Direct SQL balance edit)
-    Directly updates the transactions table without recomputing hashes.
+    Directly updates the wallet and transactions table without recomputing hashes.
     
-    v1.0 (Naive):  Tampering undetected — insider keeps ₹99,000
-    v2.0 (Secure): Hash-chain invariant catches the broken block → Circuit Breaker
+    v1.0 (Naive):  Tampering undetected — insider inflates wallet by ₹99,000
+    v2.0 (Secure): Hash-chain invariant catches the broken block → Circuit Breaker trips
     """
     secure = get_secure_mode()
 
-    # First: add a legitimate transaction to have something to tamper
+    # First: add a legitimate transaction if ledger is empty
     conn = get_conn()
-    s_bal = _get_balance("Shreyanshu", conn)
-
-    # Insert a legit entry if ledger is empty
     rows = conn.execute("SELECT COUNT(*) as cnt FROM transactions").fetchone()
     if rows["cnt"] == 0:
-        # Seed one legitimate entry
         _append_ledger_entry(conn, "Shreyanshu", "Merchant_Store", 100.0, "init-seed")
         conn.commit()
 
-    # Insider tampers: directly edits the amount on row 1 without updating curr_hash
     tampered_row = conn.execute(
         "SELECT id FROM transactions ORDER BY id ASC LIMIT 1"
     ).fetchone()
 
     if tampered_row:
         tampered_id = tampered_row["id"]
-        # Raw SQL injection-style update: adds ₹99,000 to amount without touching hashes
+        # Raw SQL update: directly adds ₹99,000 to Shreyanshu's wallet AND inflates ledger entry
+        conn.execute(
+            "UPDATE wallets SET balance = balance + 99000 WHERE username = 'Shreyanshu'"
+        )
         conn.execute(
             "UPDATE transactions SET amount = amount + 99000 WHERE id = ?",
             (tampered_id,)
         )
         conn.commit()
         tamper_msg = (
-            f"💉 Insider executed: UPDATE transactions SET amount = amount + 99000 "
-            f"WHERE id = {tampered_id}"
+            f"💉 Insider executed raw SQL: UPDATE wallets SET balance = balance + 99000; "
+            f"UPDATE transactions SET amount = amount + 99000 WHERE id = {tampered_id}"
         )
     else:
         tampered_id = None
         tamper_msg = "No rows to tamper"
 
+    s_bal = _get_balance("Shreyanshu", conn)
     conn.close()
 
     C._emit("WARN", "INV",
-            f"🔴 Insider DB tamper injected on row {tampered_id}",
+            f"🔴 Insider DB tamper injected on row {tampered_id} | Shreyanshu balance: ₹{s_bal}",
             {"raw_sql": tamper_msg})
 
     if secure:
-        # Now run invariant check — it MUST detect the broken hash
+        # Secure mode: run invariant check — it MUST detect the broken hash
         inv_result = C.check_invariant(DB_PATH, secure_mode=True)
         circuit = C.get_circuit_status()
         return jsonify({
             "attack": "Insider DB Tampering",
             "tamper_sql": tamper_msg,
             "tampered_row_id": tampered_id,
+            "shreyanshu_balance": s_bal,
             "invariant_check": inv_result,
             "circuit_breaker": circuit,
             "verdict": (
@@ -662,19 +662,20 @@ def attack_tamper():
             "mode": "secure"
         })
     else:
-        # Naive: no verification, tampering goes undetected
+        # Naive mode: no invariant verification, tampering goes undetected!
         C._emit("WARN", "INV",
-                "v1.0 NAIVE: Insider DB tamper NOT detected — no hash verification",
-                {"tampered_id": tampered_id})
-        balance = _get_balance("Shreyanshu")
+                f"v1.0 NAIVE: Insider DB tamper NOT detected — Shreyanshu kept ₹99,000! Balance: ₹{s_bal}",
+                {"tampered_id": tampered_id, "new_balance": s_bal})
         return jsonify({
             "attack": "Insider DB Tampering",
             "tamper_sql": tamper_msg,
             "tampered_row_id": tampered_id,
+            "shreyanshu_balance": s_bal,
             "verdict": (
                 f"⛔ VULNERABLE (v1.0): Tamper UNDETECTED. "
                 f"No hash chain check in naive mode. "
-                f"Insider successfully inflated ledger entry by ₹99,000."
+                f"Insider inflated Shreyanshu's wallet by ₹99,000! "
+                f"Shreyanshu balance: ₹{s_bal:,.2f}"
             ),
             "mode": "naive"
         })
