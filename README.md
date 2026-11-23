@@ -17,7 +17,7 @@
 
 ---
 
-## 📖  Overview
+## 📖 Overview
 
 **ZeroTrustPay** is an enterprise-grade Secure Software Engineering (SSE) academic project and interactive workbench. It solves a fundamental problem in real-world software development:
 
