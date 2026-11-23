@@ -1649,9 +1649,12 @@ async function runLiveTests() {
 
     if (data.tests && data.tests.length > 0) {
       container.innerHTML = data.tests.map(t => `
-        <div class="p-2.5 rounded bg-zinc-950 border border-zinc-850 flex items-center justify-between text-xs">
-          <span class="font-mono ${t.passed ? 'text-zinc-200' : 'text-rose-300'}">${t.name}</span>
-          <span class="tag ${t.passed ? 'tag-emerald' : 'tag-rose'}">${t.status}</span>
+        <div class="p-2 rounded bg-zinc-950 border border-zinc-850 flex items-center justify-between text-xs hover:border-zinc-700 transition">
+          <div class="font-mono text-xs truncate mr-2">
+            <span class="text-zinc-500">${t.suite ? t.suite + ' › ' : ''}</span>
+            <span class="${t.passed ? 'text-zinc-200' : 'text-rose-300'} font-medium">${t.test || t.name}</span>
+          </div>
+          <span class="tag ${t.passed ? 'tag-emerald' : 'tag-rose'} shrink-0">${t.status}</span>
         </div>
       `).join('');
     }

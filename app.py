@@ -927,11 +927,25 @@ def api_run_tests():
         tests = []
         for line in stdout.splitlines():
             if " PASSED" in line or " FAILED" in line or " ERROR" in line:
-                parts = line.strip().split()
+                colons = line.strip().split("::")
                 status_word = "PASSED" if "PASSED" in line else ("FAILED" if "FAILED" in line else "ERROR")
-                name = line.split("::")[1].split(" ")[0] if "::" in line else line
+                if len(colons) >= 3:
+                    suite = colons[1]
+                    test_func = colons[2].split(" ")[0]
+                    display_name = f"{suite} › {test_func}"
+                elif len(colons) == 2:
+                    suite = colons[0]
+                    test_func = colons[1].split(" ")[0]
+                    display_name = f"{suite} › {test_func}"
+                else:
+                    suite = ""
+                    test_func = line.strip()
+                    display_name = line.strip()
+
                 tests.append({
-                    "name": name,
+                    "name": display_name,
+                    "suite": suite,
+                    "test": test_func,
                     "status": status_word,
                     "passed": status_word == "PASSED"
                 })
